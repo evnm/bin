@@ -1,0 +1,28 @@
+#! /bin/sh
+#
+# Opens files based on stdin. Files are opened according to the output format
+# of the adjacent `gg` script:
+#
+#     n filename:linenumber:match
+#
+# - `n` is an ordinal line number of the match item
+# - `filename` is the name of the file to open
+# - `linenumber` is the line number of the match to jump to
+# - `match` is a snippet of the matched line of the file to open
+#
+# Usage:
+#
+# Open the first item in `gg` output searching for the string "foo":
+#
+#    $ gg foo | yank 1
+#
+# Credits:
+#
+# Based on `yank` bash function in http://bit.ly/1cGXIch.
+
+grep "^\s*$@" \
+| awk '{print $2}' \
+| sed 's/-\([0-9]*\)-/:\1:/g' \
+| awk -F: '{print $1 " +" $2}' \
+| awk '{print $2 " " $1}' \
+| xargs ${RICH_EDITOR:?RICH_EDITOR must be set.}
