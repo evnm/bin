@@ -1,0 +1,10 @@
+#! /bin/sh
+# A Git maintenance script.
+
+set -e
+root=`git rev-parse --show-toplevel`
+
+echo "Performing maintenance tasks on Git repository in ${root}..."
+git fetch
+git remote prune origin
+git repack -a -d --depth=250 --window=250
