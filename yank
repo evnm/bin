@@ -14,7 +14,7 @@
 #
 # Open the first item in `gg` output searching for the string "foo":
 #
-#    $ gg foo | yank 1
+#    $ gg . foo | yank 1
 #
 # Credits:
 #
@@ -23,6 +23,6 @@
 grep "^\s*$@" \
 | awk '{print $2}' \
 | sed 's/-\([0-9]*\)-/:\1:/g' \
-| awk -F: '{print $1 " +" $2}' \
+| awk -F: '{print $1 " +" ($2 != "" ? $2 : "1") }' \
 | awk '{print $2 " " $1}' \
 | xargs ${RICH_EDITOR:?RICH_EDITOR must be set.}
