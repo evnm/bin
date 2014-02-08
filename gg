@@ -3,4 +3,4 @@
 
 dir="$1"
 pattern="$2"
-git grep -n $pattern -- $dir | nl -s ' ' | sed 's/^ *//g'
+git grep -n "$pattern" -- $dir | nl -s ' ' | sed 's/^ *//g'
