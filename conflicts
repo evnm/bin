@@ -1,0 +1,11 @@
+#! /bin/sh
+# Suss out conflicting files from `git status` after a merge conflict.
+# Formatted for use with `yank`.
+
+git status \
+| gsed -n '/^Unmerged paths\:$/ { s///; n; :a; n; p; ba; }' \
+| grep -v '^$' \
+| gsed "s/^[ \t]*//" \
+| awk 'BEGIN {FS = " {2,}"} { print $2 "\t" $1 ; }' \
+| nl -s ' ' \
+| gsed "s/^[ \t]*//"
