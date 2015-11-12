@@ -1,0 +1,11 @@
+#! /bin/sh
+#
+# Power off and destroy all active VirtualBox VMs.
+
+echo "This command is irreversible. Are you sure you want to destroy all active VMs? [y/n] \c"
+read IS_CONFIRMED
+if [ "$IS_CONFIRMED" == "y" ]; then
+  VM_NAMES=$(VBoxManage list vms | cut -d '"' -f 2)
+  echo "$VM_NAMES" | xargs -I '{}' VBoxManage controlvm {} poweroff
+  echo "$VM_NAMES" | xargs -I '{}' VBoxManage unregistervm {} --delete
+fi
