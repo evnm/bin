@@ -20,7 +20,7 @@
 #
 # Based on `yank` bash function in http://bit.ly/1cGXIch.
 
-grep "^\s*$@" \
+grep "^\s*$@ " \
 | awk '{print $2}' \
 | sed 's/-\([0-9]*\)-/:\1:/g' \
 | awk -F: '{print $1 " +" ($2 != "" ? $2 : "1") }' \
