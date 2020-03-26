@@ -1,6 +1,13 @@
 #! /bin/sh
 # A `git grep` wrapper inspired by http://bit.ly/1cGXIch.
 
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
 dir="$1"
 pattern="$2"
-git grep -n "$pattern" -- $dir | nl -s ' ' | sed 's/^ *//g'
+
+git grep -n "$pattern" -- $dir \
+  | nl -s ' ' \
+  | sed 's/^ *//g' \
+  | sed  -E "s/^([[:digit:]]+) ([^:]+:[[:digit:]]+)(.+)/$(tput setaf 3)\1 $(tput setaf 2)\2$(tput sgr0)\3/"
