@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 # A fuzzy `git checkout`.
 
 arg=$1
