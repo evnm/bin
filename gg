@@ -1,9 +1,6 @@
 #! /bin/sh
 # A `git grep` wrapper inspired by http://bit.ly/1cGXIch.
 
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
 dir="$1"
 pattern="$2"
 
