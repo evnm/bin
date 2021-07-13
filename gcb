@@ -10,6 +10,6 @@ else
   case `wc -w <<< "$match" | tr -d ' '` in
     "0") echo "error: '$arg' did not match any branch." 2>&1 ;;
     "1") git checkout $match ;;
-    *) echo "error: '$arg' is ambigious among:\n$match" 2>&1
+    *) echo -e "error: '$arg' is ambigious among:\n$match" 2>&1
   esac
 fi
