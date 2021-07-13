@@ -20,9 +20,15 @@
 #
 # Based on `yank` bash function in http://bit.ly/1cGXIch.
 
-grep "^\s*$@ " \
+# 1. Rm ANSI color codes.
+# 2. Rm shift in characters.
+# 3. Select line prefixed by yank target number.
+# 4. Pick out second token.
+# 5. Format filename and line number to be passed to editor.
+# 6. Open file at line number in configured rich editor.
+sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g" \
+| sed "s/\o017//g" \
+| grep "^\s*$@ " \
 | awk '{print $2}' \
-| sed 's/-\([0-9]*\)-/:\1:/g' \
-| awk -F: '{print $1 " +" ($2 != "" ? $2 : "1") }' \
-| awk '{print $2 " " $1}' \
+| awk -F: '{print "+" ($2 != "" ? $2 : "1") " " $1}' \
 | xargs ${RICH_EDITOR:?RICH_EDITOR must be set.}
