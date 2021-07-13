@@ -4,6 +4,11 @@
 dir="$1"
 pattern="$2"
 
+if [ -z "$pattern" ]; then
+  pattern="$dir"
+  dir="."
+fi
+
 git grep -n "$pattern" -- $dir \
   | nl -s ' ' \
   | sed 's/^ *//g' \
