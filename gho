@@ -1,0 +1,34 @@
+#! /bin/sh
+#
+# Opens files on GitHub web based on stdin. Files are opened according
+# to the output format of the adjacent `gg` script:
+#
+#     n filename:linenumber:match
+#
+# - `n` is an ordinal line number of the match item
+# - `filename` is the name of the file to open
+# - `linenumber` is the line number of the match to jump to
+# - `match` is a snippet of the matched line of the file to open
+#
+# Usage:
+#
+# Open the first item in `gg` output searching for the string "foo":
+#
+#    $ gg . foo | gho 1
+#
+# Credits:
+#
+# Based on `yank` bash function in http://bit.ly/1cGXIch.
+
+# 1. Rm ANSI color codes.
+# 2. Rm shift in characters.
+# 3. Select line prefixed by yank target number.
+# 4. Pick out second token.
+# 5. Format filename and line number to be passed to editor.
+# 6. Open file at line number in configured rich editor.
+sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g" \
+| sed "s/\o017//g" \
+| grep "^\s*$@ " \
+| awk '{print $2}' \
+| awk -F: '{print "https://github.com/samsara-dev/backend/blob/master/" $1 "#L" ($2 != "" ? $2 : "1")}' \
+| xargs open
