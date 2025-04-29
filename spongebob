@@ -1,0 +1,16 @@
+#! /bin/sh
+# A shell command which prints its input wItH AlTeRnAtInG LoWeR AnD
+# UpPeRcAsInG.
+#
+# Example:
+# $ echo "we're all trying to find who did this" | spongebob
+# wE'Re aLl tRyInG To fInD WhO DiD ThIs
+
+<&0 awk '
+{ 
+  split($0, chars, "")
+  for (i=1; i <= length($0); i++) {
+    printf "%s", i % 2 == 0 ? toupper(chars[i]) : tolower(chars[i])
+  }
+  printf "\n"
+}'
