@@ -7,10 +7,10 @@
 # wE'Re aLl tRyInG To fInD WhO DiD ThIs
 
 <&0 awk '
-{ 
+{
   split($0, chars, "")
   for (i=1; i <= length($0); i++) {
-    printf "%s", i % 2 == 0 ? toupper(chars[i]) : tolower(chars[i])
+    printf("%s", i % 2 == 0 ? toupper(chars[i]) : tolower(chars[i]))
   }
   printf "\n"
 }'
