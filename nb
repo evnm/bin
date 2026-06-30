@@ -1,0 +1,75 @@
+#! /bin/bash
+#
+# nb - new branch
+#
+# Sets up a fresh git worktree for a new branch and opens it in a new tmux
+# window, ready to start work.
+#
+# Specifically, nb:
+#
+#   1. Creates a new branch and an accompanying git worktree, checked out at
+#      .claude/worktrees/<branch-name>, with slashes in the branch name
+#      replaced by '+' to keep the worktree path a single path component.
+#   2. Opens a new tmux window homed in the worktree's working directory,
+#      split into two panes stacked vertically: the top pane starts a fresh
+#      `claude` session, the bottom pane is a plain shell.
+#
+# Usage:
+#
+#   nb <branch-name>
+#
+# Examples:
+#
+#   $ nb feature/foo
+#   # creates branch 'feature/foo', worktree at
+#   # .claude/worktrees/feature+foo, and a tmux window split into a claude
+#   # pane and a shell pane, both homed in that worktree.
+
+set -e
+
+usage() {
+  cat <<EOF
+Usage: nb <branch-name>
+
+Create a new git branch and worktree, then open it in a new tmux window
+split into a 'claude' pane (top) and a shell pane (bottom).
+
+  1. Runs:
+       git worktree add -b <branch-name> .claude/worktrees/<sanitized-name>
+     where <sanitized-name> is <branch-name> with '/' replaced by '+'.
+  2. Opens a new tmux window homed in the worktree directory with two
+     vertically stacked panes: a fresh 'claude' session on top and a plain
+     shell on the bottom.
+
+Must be run from inside a tmux session and inside a git repository.
+
+Options:
+  -h, --help    Show this help message and exit.
+EOF
+}
+
+case "$1" in
+  -h|--help|"")
+    usage
+    exit 0
+    ;;
+esac
+
+branch_name=$1
+
+if [ -z "$TMUX" ]; then
+  echo "error: nb must be run from inside a tmux session." >&2
+  exit 1
+fi
+
+repo_root=$(git rev-parse --show-toplevel) || exit 1
+
+sanitized_name=${branch_name//\//+}
+worktree_dir="$repo_root/.claude/worktrees/$sanitized_name"
+
+git worktree add -b "$branch_name" "$worktree_dir"
+
+window_id=$(tmux new-window -P -F '#{window_id}' -c "$worktree_dir" -n "$sanitized_name")
+tmux send-keys -t "$window_id" 'claude' C-m
+tmux split-window -v -t "$window_id" -c "$worktree_dir"
+tmux select-pane -t "${window_id}.0"
