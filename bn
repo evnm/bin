@@ -1,0 +1,71 @@
+#! /bin/bash
+#
+# bn - inverse nb
+#
+# Cleans up a git worktree and branch created by nb.
+#
+# Specifically, bn:
+#
+#   1. Removes the git worktree at .claude/worktrees/<branch-name>, with
+#      slashes in the branch name replaced by '+' to match the worktree
+#      path nb created.
+#   2. Deletes the branch.
+#
+# Usage:
+#
+#   bn <branch-name>
+#
+# Examples:
+#
+#   $ bn feature/foo
+#   # removes worktree at .claude/worktrees/feature+foo and deletes branch
+#   # 'feature/foo'.
+
+set -e
+
+usage() {
+  cat <<EOF
+Usage: bn <branch-name>
+
+Remove a git worktree and delete its branch, inverting nb.
+
+  1. Prompts for confirmation [y/N].
+  2. Runs:
+       git worktree remove .claude/worktrees/<sanitized-name>
+     where <sanitized-name> is <branch-name> with '/' replaced by '+'.
+  3. Runs:
+       git branch -D <branch-name>
+
+Must be run from inside a git repository.
+
+Options:
+  -h, --help    Show this help message and exit.
+EOF
+}
+
+case "$1" in
+  -h|--help|"")
+    usage
+    exit 0
+    ;;
+esac
+
+branch_name=$1
+
+repo_root=$(git rev-parse --show-toplevel) || exit 1
+
+sanitized_name=${branch_name//\//+}
+worktree_dir="$repo_root/.claude/worktrees/$sanitized_name"
+
+read -r -p "Remove worktree '$worktree_dir' and delete branch '$branch_name'? [yN] " confirm
+case "$confirm" in
+  y|Y|yes|YES)
+    ;;
+  *)
+    echo "Aborted." >&2
+    exit 1
+    ;;
+esac
+
+git worktree remove "$worktree_dir"
+git branch -D "$branch_name"
