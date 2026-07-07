@@ -1,0 +1,19 @@
+#! /bin/sh
+# Delete every file (and only those files) that `git status` lists as
+# untracked, i.e. not tracked and not ignored via .gitignore.
+#
+# Usage: rm-untracked [-n]
+#   -n   dry run; show what would be deleted without deleting anything
+
+set -e
+
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
+    echo "rm-untracked: not inside a git repository" >&2
+    exit 1
+}
+
+if [ "$1" = "-n" ]; then
+    git clean -nd
+else
+    git clean -fd
+fi
