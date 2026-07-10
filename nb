@@ -14,9 +14,16 @@
 #      split into two panes stacked vertically: the top pane starts a fresh
 #      `claude` session, the bottom pane is a plain shell.
 #
+# You can either name the new branch explicitly, or point nb at a pre-written
+# plan file with -p. In plan mode, nb derives the branch name from the plan
+# file's basename (prefixed by your GitHub username) and seeds the claude
+# session with a prompt telling it to read the plan, study the relevant code,
+# and wait for your go-ahead before implementing.
+#
 # Usage:
 #
 #   nb <branch-name>
+#   nb -p <plan-file>
 #
 # Examples:
 #
@@ -24,12 +31,19 @@
 #   # creates branch 'feature/foo', worktree at
 #   # .claude/worktrees/feature+foo, and a tmux window split into a claude
 #   # pane and a shell pane, both homed in that worktree.
+#
+#   $ nb -p docs/plans/rework-auth.md
+#   # creates branch 'evnm/rework-auth' (evnm = your GitHub username),
+#   # worktree at .claude/worktrees/evnm+rework-auth, and a tmux window as
+#   # above, with the claude pane primed to study the plan and wait for your
+#   # confirmation.
 
 set -e
 
 usage() {
   cat <<EOF
 Usage: nb <branch-name>
+       nb -p <plan-file>
 
 Create a new git branch and worktree, then open it in a new tmux window
 split into a 'claude' pane (top) and a shell pane (bottom).
@@ -41,28 +55,99 @@ split into a 'claude' pane (top) and a shell pane (bottom).
      vertically stacked panes: a fresh 'claude' session on top and a plain
      shell on the bottom.
 
+Provide exactly one of:
+  <branch-name>       Name the new branch explicitly.
+  -p, --plan <file>   Derive the branch name from a plan file's basename
+                      (prefixed by your GitHub username) and seed the claude
+                      session with a prompt to read the plan, study the
+                      relevant code, and wait for confirmation before
+                      implementing.
+
 Must be run from inside a tmux session and inside a git repository.
 
 Options:
-  -h, --help    Show this help message and exit.
+  -p, --plan <file>   Use a plan file (see above).
+  -h, --help          Show this help message and exit.
 EOF
 }
 
-case "$1" in
-  -h|--help|"")
-    usage
-    exit 0
-    ;;
-esac
+plan_file=""
+branch_name=""
 
-branch_name=$1
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -p|--plan)
+      if [ -z "$2" ]; then
+        echo "error: $1 requires a plan file argument." >&2
+        exit 1
+      fi
+      plan_file=$2
+      shift 2
+      ;;
+    -*)
+      echo "error: unknown option '$1'." >&2
+      usage >&2
+      exit 1
+      ;;
+    *)
+      if [ -n "$branch_name" ]; then
+        echo "error: unexpected extra argument '$1'." >&2
+        exit 1
+      fi
+      branch_name=$1
+      shift
+      ;;
+  esac
+done
 
 if [ -z "$TMUX" ]; then
   echo "error: nb must be run from inside a tmux session." >&2
   exit 1
 fi
 
+# Require exactly one of <branch-name> or -p <plan-file>.
+if [ -n "$plan_file" ] && [ -n "$branch_name" ]; then
+  echo "error: pass either a branch name or -p <plan-file>, not both." >&2
+  exit 1
+fi
+if [ -z "$plan_file" ] && [ -z "$branch_name" ]; then
+  usage >&2
+  exit 1
+fi
+
 repo_root=$(git rev-parse --show-toplevel) || exit 1
+
+if [ -n "$plan_file" ]; then
+  if [ ! -f "$plan_file" ]; then
+    echo "error: plan file not found: $plan_file" >&2
+    exit 1
+  fi
+  # Resolve to an absolute path so the claude session can read it regardless
+  # of the worktree's location.
+  # CDPATH= keeps 'cd' from echoing a resolved path (which would be captured
+  # into plan_file and corrupt it) when the user has CDPATH set in their env.
+  plan_file=$(CDPATH= cd -- "$(dirname "$plan_file")" && printf '%s/%s' "$(pwd)" "$(basename "$plan_file")")
+
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "error: -p requires the gh CLI to derive the branch name, but 'gh' was not found." >&2
+    echo "       Install it from https://cli.github.com/ or pass a branch name instead." >&2
+    exit 1
+  fi
+  gh_user=$(gh api user --jq .login 2>/dev/null || true)
+  if [ -z "$gh_user" ]; then
+    echo "error: could not determine your GitHub username via 'gh api user'." >&2
+    echo "       Is gh authenticated ('gh auth login')?" >&2
+    exit 1
+  fi
+
+  plan_base=$(basename "$plan_file")
+  plan_base=${plan_base%.*}            # strip extension
+  branch_name="$gh_user/$plan_base"
+fi
 
 sanitized_name=${branch_name//\//+}
 worktree_dir="$repo_root/.claude/worktrees/$sanitized_name"
@@ -70,6 +155,17 @@ worktree_dir="$repo_root/.claude/worktrees/$sanitized_name"
 git worktree add -b "$branch_name" "$worktree_dir"
 
 window_id=$(tmux new-window -P -F '#{window_id}' -c "$worktree_dir" -n "$sanitized_name")
-tmux send-keys -t "$window_id" 'claude' C-m
+
+if [ -n "$plan_file" ]; then
+  plan_prompt="Please read the plan file at $plan_file. Study any technologies and parts of this codebase that are relevant to the plan so you fully understand the context. Do NOT begin implementation yet — once you've finished studying, summarize your understanding of the plan and wait for my confirmation before you start implementing."
+  # Pass the prompt to claude as an initial-prompt argument (%q shell-quotes
+  # it into a single safe token) so there's no need to race the TUI's startup
+  # by typing into the prompt box.
+  printf -v claude_cmd 'claude %q' "$plan_prompt"
+  tmux send-keys -t "$window_id" "$claude_cmd" C-m
+else
+  tmux send-keys -t "$window_id" 'claude' C-m
+fi
+
 tmux split-window -v -t "$window_id" -c "$worktree_dir"
 tmux select-pane -t "${window_id}.0"
