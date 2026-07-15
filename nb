@@ -18,7 +18,9 @@
 # plan file with -p. In plan mode, nb derives the branch name from the plan
 # file's basename (prefixed by your GitHub username) and seeds the claude
 # session with a prompt telling it to read the plan, study the relevant code,
-# and wait for your go-ahead before implementing.
+# and wait for your go-ahead before implementing. The plan file's path is
+# recorded in git config as branch.<branch-name>.planfile, so bn can offer to
+# archive it when the branch is torn down.
 #
 # Usage:
 #
@@ -153,6 +155,10 @@ sanitized_name=${branch_name//\//+}
 worktree_dir="$repo_root/.claude/worktrees/$sanitized_name"
 
 git worktree add -b "$branch_name" "$worktree_dir"
+
+if [ -n "$plan_file" ]; then
+  git config "branch.$branch_name.planfile" "$plan_file"
+fi
 
 window_id=$(tmux new-window -P -F '#{window_id}' -c "$worktree_dir" -n "$sanitized_name")
 

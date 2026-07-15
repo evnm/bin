@@ -10,6 +10,10 @@
 #      slashes in the branch name replaced by '+' to match the worktree
 #      path nb created.
 #   2. Deletes the branch.
+#   3. If the branch was created via `nb -p <plan-file>`, offers to archive
+#      the associated plan file (recorded in git config as
+#      branch.<branch-name>.planfile) by moving it into an archive/
+#      subdirectory alongside the plan file.
 #
 # Usage:
 #
@@ -35,6 +39,10 @@ Remove a git worktree and delete its branch, inverting nb.
      where <sanitized-name> is <branch-name> with '/' replaced by '+'.
   3. Runs:
        git branch -D <branch-name>
+  4. If branch.<branch-name>.planfile is set in git config, prompts to
+     archive that plan file by moving it into an archive/ subdirectory
+     alongside it. (The config entry is pruned automatically as part of
+     step 3.)
 
 Must be run from inside a git repository.
 
@@ -67,5 +75,23 @@ case "$confirm" in
     ;;
 esac
 
+# Capture the planfile config before deleting the branch: git prunes a
+# branch's config section (including this custom key) as part of `branch -D`.
+plan_file=$(git config "branch.$branch_name.planfile" 2>/dev/null || true)
+
 git worktree remove "$worktree_dir"
 git branch -D "$branch_name"
+
+if [ -n "$plan_file" ] && [ -f "$plan_file" ]; then
+  read -r -p "Archive plan file '$plan_file'? [yN] " archive_confirm
+  case "$archive_confirm" in
+    y|Y|yes|YES)
+      archive_dir="$(dirname "$plan_file")/archive"
+      mkdir -p "$archive_dir"
+      mv -n "$plan_file" "$archive_dir/"
+      echo "Archived plan file to '$archive_dir/$(basename "$plan_file")'."
+      ;;
+    *)
+      ;;
+  esac
+fi
